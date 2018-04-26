@@ -48,9 +48,13 @@ class Sample
 
     /**
      * @return mixed[]
+     * @throws PrometheusException
      */
     public function getLabels()
     {
+        if (count($this->labelNames) !== count($this->labelValues)) {
+            throw new PrometheusException('Label count does not match values count.');
+        }
         return array_combine($this->labelNames, $this->labelValues);
     }
 

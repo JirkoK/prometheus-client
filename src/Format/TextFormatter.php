@@ -3,6 +3,7 @@
 namespace TweedeGolf\PrometheusClient\Format;
 
 use TweedeGolf\PrometheusClient\MetricFamilySamples;
+use TweedeGolf\PrometheusClient\PrometheusException;
 
 class TextFormatter implements FormatterInterface
 {
@@ -30,18 +31,29 @@ class TextFormatter implements FormatterInterface
             $lines[] = "# TYPE {$sampleFamily->getName()} {$sampleFamily->getType()}";
 
             foreach ($sampleFamily->getSamples() as $sample) {
-                $labels = [];
-                foreach ($sample->getLabels() as $labelName => $labelValue) {
-                    $escapedLabelValue = str_replace(['\\', '"', "\n"], ['\\\\', '\\"', '\\\\n'], (string)$labelValue);
-                    $labels[] = "{$labelName}=\"{$escapedLabelValue}\"";
-                }
+                try {
+                    $labels = [];
+                    foreach ($sample->getLabels() as $labelName => $labelValue) {
+                        $escapedLabelValue = str_replace(
+                            ['\\', '"', "\n"],
+                            ['\\\\', '\\"', '\\\\n'],
+                            (string)$labelValue
+                        );
+                        $labels[] = "{$labelName}=\"{$escapedLabelValue}\"";
+                    }
 
-                $metric = $sample->getName();
-                if (count($labels) > 0) {
-                    $metric .= "{".implode(',', $labels)."}";
-                }
+                    $metric = $sample->getName();
+                    if (count($labels) > 0) {
+                        $metric .= "{".implode(',', $labels)."}";
+                    }
 
-                $lines[] = "{$metric} {$sample->getValue()}";
+                    $lines[] = "{$metric} {$sample->getValue()}";
+
+                } catch (PrometheusException $e) {
+                    // there was an error, while rendering samples, so do not plot the sample
+                    // atm this occurs if you added or removed a label within declaration and
+                    // do not flush redis persistence
+                }
             }
 
             $lines[] = "";
